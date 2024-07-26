@@ -1,0 +1,247 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+
+local selectedObject = nil
+local originalColors = {}
+local scalingEnabled = false
+
+-- Create the UI
+local function createUI()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "ObjectScalerUI"
+    screenGui.Parent = player:WaitForChild("PlayerGui")
+
+    local uiFrame = Instance.new("Frame")
+    uiFrame.Name = "ScaleUIFrame"
+    uiFrame.Size = UDim2.new(0, 300, 0, 250)
+    uiFrame.Position = UDim2.new(0.5, -150, 0.5, -125)
+    uiFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    uiFrame.BorderSizePixel = 0
+    uiFrame.BackgroundTransparency = 0.2
+    uiFrame.Visible = false
+    uiFrame.Active = true
+    uiFrame.Draggable = true
+    uiFrame.Parent = screenGui
+
+    local closeButton = Instance.new("TextButton")
+    closeButton.Name = "CloseButton"
+    closeButton.Size = UDim2.new(0, 60, 0, 30)
+    closeButton.Position = UDim2.new(1, -65, 0, 5)
+    closeButton.Text = "Close"
+    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+    closeButton.BorderSizePixel = 0
+    closeButton.Font = Enum.Font.SourceSans
+    closeButton.TextSize = 20
+    closeButton.Parent = uiFrame
+
+    local xLabel = Instance.new("TextLabel")
+    xLabel.Name = "XLabel"
+    xLabel.Size = UDim2.new(0, 25, 0, 25)
+    xLabel.Position = UDim2.new(0, 10, 0, 50)
+    xLabel.Text = "X"
+    xLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    xLabel.BackgroundTransparency = 1
+    xLabel.Font = Enum.Font.SourceSans
+    xLabel.TextSize = 20
+    xLabel.Parent = uiFrame
+
+    local xScaleBox = Instance.new("TextBox")
+    xScaleBox.Name = "XScaleBox"
+    xScaleBox.Size = UDim2.new(0, 100, 0, 30)
+    xScaleBox.Position = UDim2.new(0, 50, 0, 45)
+    xScaleBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    xScaleBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    xScaleBox.BorderSizePixel = 0
+    xScaleBox.Font = Enum.Font.SourceSans
+    xScaleBox.TextSize = 20
+    xScaleBox.PlaceholderText = "X"
+    xScaleBox.Parent = uiFrame
+
+    local yLabel = Instance.new("TextLabel")
+    yLabel.Name = "YLabel"
+    yLabel.Size = UDim2.new(0, 25, 0, 25)
+    yLabel.Position = UDim2.new(0, 10, 0, 95)
+    yLabel.Text = "Y"
+    yLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    yLabel.BackgroundTransparency = 1
+    yLabel.Font = Enum.Font.SourceSans
+    yLabel.TextSize = 20
+    yLabel.Parent = uiFrame
+
+    local yScaleBox = Instance.new("TextBox")
+    yScaleBox.Name = "YScaleBox"
+    yScaleBox.Size = UDim2.new(0, 100, 0, 30)
+    yScaleBox.Position = UDim2.new(0, 50, 0, 90)
+    yScaleBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    yScaleBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    yScaleBox.BorderSizePixel = 0
+    yScaleBox.Font = Enum.Font.SourceSans
+    yScaleBox.TextSize = 20
+    yScaleBox.PlaceholderText = "Y"
+    yScaleBox.Parent = uiFrame
+
+    local zLabel = Instance.new("TextLabel")
+    zLabel.Name = "ZLabel"
+    zLabel.Size = UDim2.new(0, 25, 0, 25)
+    zLabel.Position = UDim2.new(0, 10, 0, 140)
+    zLabel.Text = "Z"
+    zLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    zLabel.BackgroundTransparency = 1
+    zLabel.Font = Enum.Font.SourceSans
+    zLabel.TextSize = 20
+    zLabel.Parent = uiFrame
+
+    local zScaleBox = Instance.new("TextBox")
+    zScaleBox.Name = "ZScaleBox"
+    zScaleBox.Size = UDim2.new(0, 100, 0, 30)
+    zScaleBox.Position = UDim2.new(0, 50, 0, 135)
+    zScaleBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    zScaleBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    zScaleBox.BorderSizePixel = 0
+    zScaleBox.Font = Enum.Font.SourceSans
+    zScaleBox.TextSize = 20
+    zScaleBox.PlaceholderText = "Z"
+    zScaleBox.Parent = uiFrame
+
+    local applyButton = Instance.new("TextButton")
+    applyButton.Name = "ApplyButton"
+    applyButton.Size = UDim2.new(0, 60, 0, 30)
+    applyButton.Position = UDim2.new(0, 10, 0, 180)
+    applyButton.Text = "Apply"
+    applyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    applyButton.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+    applyButton.BorderSizePixel = 0
+    applyButton.Font = Enum.Font.SourceSans
+    applyButton.TextSize = 20
+    applyButton.Parent = uiFrame
+
+    return screenGui, uiFrame, xScaleBox, yScaleBox, zScaleBox, closeButton, applyButton
+end
+
+local screenGui, uiFrame, xScaleBox, yScaleBox, zScaleBox, closeButton, applyButton = createUI()
+
+-- Function to save the original color of the object
+local function saveOriginalColor(object)
+    originalColors[object] = {}
+    for _, part in ipairs(object:GetDescendants()) do
+        if part:IsA("BasePart") then
+            originalColors[object][part] = part.BrickColor
+        end
+    end
+end
+
+-- Function to revert the object to its original color
+local function revertToOriginalColor(object)
+    if originalColors[object] then
+        for part, color in pairs(originalColors[object]) do
+            part.BrickColor = color
+        end
+    end
+end
+
+-- Function to update the color of the object
+local function updateObjectColor(object, color)
+    for _, part in ipairs(object:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.BrickColor = BrickColor.new(color)
+        end
+    end
+end
+
+-- Function to handle object selection
+local function onObjectClicked(object)
+    if selectedObject and selectedObject ~= object then
+        revertToOriginalColor(selectedObject)
+        selectedObject = nil
+        uiFrame.Visible = false
+    end
+
+    if selectedObject == object then
+        updateObjectColor(object, "Bright green")
+        uiFrame.Visible = true
+        xScaleBox.Text = tostring(math.floor(object.PrimaryPart.Size.X))
+        yScaleBox.Text = tostring(math.floor(object.PrimaryPart.Size.Y))
+        zScaleBox.Text = tostring(math.floor(object.PrimaryPart.Size.Z))
+    else
+        saveOriginalColor(object)
+        updateObjectColor(object, "Bright red")
+        selectedObject = object
+        uiFrame.Visible = false
+    end
+end
+
+-- Mouse click event
+mouse.Button1Down:Connect(function()
+    if scalingEnabled then
+        local target = mouse.Target
+        if target and target:IsDescendantOf(workspace) then
+            onObjectClicked(target.Parent)
+        end
+    end
+end)
+
+-- Close button functionality
+closeButton.MouseButton1Click:Connect(function()
+    if selectedObject then
+        revertToOriginalColor(selectedObject)
+        selectedObject = nil
+        uiFrame.Visible = false
+    end
+end)
+
+-- Function to update the object's scale
+local function updateObjectScale()
+    if selectedObject then
+        local xScale = tonumber(xScaleBox.Text) or selectedObject.PrimaryPart.Size.X
+        local yScale = tonumber(yScaleBox.Text) or selectedObject.PrimaryPart.Size.Y
+        local zScale = tonumber(zScaleBox.Text) or selectedObject.PrimaryPart.Size.Z
+        
+        for _, part in ipairs(selectedObject:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Size = Vector3.new(xScale, yScale, zScale)
+            end
+        end
+    end
+end
+
+applyButton.MouseButton1Click:Connect(updateObjectScale)
+
+-- Chat commands to enable and disable scaling
+player.Chatted:Connect(function(message)
+    if message == ";scale" then
+        scalingEnabled = true
+    elseif message == ";disablescale" then
+        scalingEnabled = false
+        if selectedObject then
+            revertToOriginalColor(selectedObject)
+            selectedObject = nil
+            uiFrame.Visible = false
+        end
+    end
+end)
+
+-- Ensure persistence
+local function onCharacterAdded(character)
+    -- Re-create the UI when the player respawns
+    screenGui, uiFrame, xScaleBox, yScaleBox, zScaleBox, closeButton, applyButton = createUI()
+
+    -- Reconnect UI functionalities
+    closeButton.MouseButton1Click:Connect(function()
+        if selectedObject then
+            revertToOriginalColor(selectedObject)
+            selectedObject = nil
+            uiFrame.Visible = false
+        end
+    end)
+
+    applyButton.MouseButton1Click:Connect(function()
+        updateObjectScale()
+    end)
+end
+
+player.CharacterAdded:Connect(onCharacterAdded)
+
+-- Initialize for the first load
+onCharacterAdded(player.Character or player.CharacterAdded:Wait())
